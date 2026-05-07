@@ -1,2 +1,6 @@
 .cortex/
 app/
+
+# Modelos locais Florence e artefatos de cache
+LLM/*/
+!LLM/README.md

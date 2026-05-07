@@ -2,6 +2,8 @@
 
 Atualizar o planejamento técnico do multi-view do TripoSR para incorporar uma evidência validada de geração local 4-view, tratando `anjinho-all-sides.png` como artefato canônico de entrada multi-view e posicionando uma etapa opcional/plugável de geração local via ComfyUI + Florence antes da ingestão pelo TripoSR.
 
+Nesta fase, o escopo multi-view fica explicitamente restrito a 4 vistas canônicas consistentes — frente, esquerda, costas e direita — sem incluir topo da cabeça ou planta do pé.
+
 Este plano revisa e sucede o plano anterior de `triposr-multiview-plan-2026-05-03.md`, sem substituir a meta principal: melhorar a reconstrução 3D a partir de uma entrada mais informativa do que a imagem processada única.
 
 # Contexto
@@ -20,6 +22,9 @@ Novo contexto validado pelo usuário:
 - isso indica que a peça Florence pode ser portada para Python puro fora do ComfyUI;
 - porém, o próprio pacote inspecionado se apresenta como `image-text-to-text`, isto é, ele comprova portabilidade do componente Florence, mas não comprova isoladamente que ele sozinho sintetiza a imagem final `anjinho-all-sides.png`;
 - portanto, deve-se assumir que o resultado 4-view observado pode depender de um pipeline maior no ComfyUI, no qual Florence atua como um componente e não necessariamente como gerador raster final;
+- o usuário decidiu restringir explicitamente o escopo da fase atual a 4 vistas canônicas consistentes — frente, esquerda, costas e direita;
+- vistas extras como topo da cabeça e planta do pé ficam fora da fase atual;
+- a justificativa registrada é priorizar alinhamento consistente, pois o ganho incremental esperado de top/bottom é considerado pequeno frente ao risco de desalinhamento;
 - o prompt abaixo foi validado pelo usuário como referência funcional do contrato visual desejado:
 
 > create full body turnaround sheet of this exact character, four poses on pure white background in clean horizontal row: front view, left profile facing left, back view, right profile facing right, evenly spaced, consistent style and proportions, each figure centered, no overlap, use uniform frame size for all poses, define a consistent bounding box based on the widest and tallest pose, scale all characters to fit inside this same box, keep large empty space around each, enforce wide safe margins, nothing touches borders, no cropping ever, full silhouette always visible including wings hair accessories, each pose must show distinct orientation not mirrored or duplicated, prioritize padding over size, equal spacing between frames, no background noise, no shadows
@@ -48,6 +53,9 @@ Estado do contexto em `.vibecoding/`:
 8. O plano deve priorizar integração incremental e reversível, sem acoplar o app à implementação específica do workflow do ComfyUI.
 9. O pacote `Florence-2-Flux-Large` deve ser tratado como um candidato portável para execução em Python puro fora do ComfyUI.
 10. Até inspeção do workflow completo, não se deve assumir que Florence sozinho gera a imagem 4-view final; a arquitetura deve separar explicitamente componentes de compreensão/orquestração de componentes de síntese visual.
+11. O escopo multi-view da fase atual fica explicitamente restrito a quatro vistas canônicas: frente, esquerda, costas e direita.
+12. Vistas de topo da cabeça e planta do pé ficam deliberadamente fora da fase atual.
+13. A exclusão de top/bottom é uma diretriz de redução de escopo para preservar alinhamento consistente; o ganho adicional esperado não justifica, neste momento, o risco extra de desalinhamento.
 
 # Estratégia
 
@@ -65,6 +73,9 @@ Essa camada serve para:
 ## 2. Camada de contrato multi-view
 
 Definir um contrato único para qualquer insumo 4-view validado, seja ele:
+
+Nesta fase, esse contrato cobre exclusivamente quatro vistas canônicas consistentes: `front`, `left`, `back` e `right`.
+Não devem ser planejadas, aceitas como padrão nem inferidas automaticamente vistas extras como `top` ou `bottom` na fase atual.
 - gerado localmente por ComfyUI + Florence;
 - produzido por preprocess interno futuro;
 - preparado manualmente para testes;
@@ -93,6 +104,24 @@ Origem validada:
 - entrada base: `anjinho-lowpoly.png`
 - geração local: ComfyUI + Florence
 - operação offline/local: sem API key
+
+## Diretriz explícita de escopo desta fase
+
+O contrato multi-view desta fase é intencionalmente limitado a quatro vistas canônicas consistentes:
+1. frente
+2. esquerda
+3. costas
+4. direita
+
+Ficam explicitamente fora do escopo atual:
+- topo da cabeça;
+- planta do pé;
+- qualquer variação equivalente de `top view` ou `bottom view`.
+
+Justificativa registrada:
+- o usuário prioriza alinhamento consistente entre vistas;
+- o ganho adicional esperado de top/bottom é considerado pequeno nesta fase;
+- o risco de desalinhamento e aumento de ambiguidade do payload é considerado maior do que o benefício incremental.
 
 ## Ordem canônica das vistas
 
@@ -131,7 +160,8 @@ Um insumo 4-view só deve ser considerado válido para integração se:
 - a silhueta completa estiver íntegra nas quatro posições;
 - não houver ambiguidades claras de orientação;
 - o enquadramento for consistente o suficiente para segmentação/interpretação por frame;
-- a imagem puder ser decomposta de forma determinística em quatro vistas lógicas.
+- a imagem puder ser decomposta de forma determinística em quatro vistas lógicas;
+- o payload permanecer restrito a `front`, `left`, `back` e `right`, sem depender de `top` ou `bottom`.
 
 ## Payload lógico recomendado
 
@@ -142,6 +172,8 @@ Mesmo quando a representação física for uma imagem única horizontal, o contr
 - `right`
 - `composite_preview`
 - metadados de resolução, ordem, bbox lógica, padding e origem
+
+Nesta fase, o payload não deve prever campos `top`, `bottom` ou equivalentes.
 
 Isso evita acoplamento com um formato puramente visual e facilita troca futura do gerador.
 
@@ -229,7 +261,8 @@ Definir o contrato técnico do insumo multi-view com base no caso validado.
 - documentar ordem canônica;
 - documentar requisitos visuais obrigatórios;
 - documentar critérios de validade;
-- definir payload lógico interno multi-view.
+- definir payload lógico interno multi-view;
+- explicitar que a fase atual aceita apenas `front`, `left`, `back` e `right`, excluindo `top` e `bottom`.
 
 ### Resultado esperado
 O sistema passa a ter um contrato estável para qualquer fonte de 4 vistas.
@@ -240,9 +273,10 @@ O sistema passa a ter um contrato estável para qualquer fonte de 4 vistas.
 Planejar primeiro a integração usando `anjinho-all-sides.png` diretamente como insumo de teste.
 
 ### Escopo
-- decompor a imagem 4-view em quatro vistas lógicas;
+- decompor a imagem 4-view em quatro vistas lógicas canônicas;
 - adaptar o fluxo de preprocess/generate para aceitar payload multi-view;
-- validar a semântica de `Nv=4` no pipeline.
+- validar a semântica de `Nv=4` no pipeline;
+- manter fora do escopo qualquer ingestão de `top` ou `bottom` nesta fase.
 
 ### Resultado esperado
 A integração multi-view é provada sobre um artefato real já validado, sem depender ainda da automação do gerador local.
@@ -308,8 +342,8 @@ Decisão de produto baseada em evidência, não em hipótese.
 # Etapas
 
 1. Registrar formalmente `anjinho-all-sides.png` como entrada 4-view canônica validada.
-2. Formalizar o contrato técnico da imagem 4-view com base no prompt aprovado.
-3. Planejar a decomposição lógica do artefato 4-view em quatro vistas nomeadas.
+2. Formalizar o contrato técnico da imagem 4-view com base no prompt aprovado e na diretriz explícita de escopo restrito.
+3. Planejar a decomposição lógica do artefato 4-view em quatro vistas nomeadas canônicas: `front`, `left`, `back` e `right`.
 4. Planejar a atualização do preprocess para produzir/aceitar `composite_preview` e payload multi-view.
 5. Planejar a adaptação de `generate()` para receber payload multi-view além do legado single-view.
 6. Planejar a revisão de `TSR.forward()` para suportar `Nv` dinâmico.
@@ -321,13 +355,15 @@ Decisão de produto baseada em evidência, não em hipótese.
 # Critérios de aceite atualizados
 
 1. O plano passa a reconhecer `anjinho-all-sides.png` como artefato canônico de entrada 4-view.
-2. A arquitetura prevista separa claramente geração das vistas e ingestão no TripoSR.
-3. A etapa ComfyUI + Florence aparece como etapa opcional/plugável, local e sem dependência de API key.
-4. O contrato da imagem 4-view fica explícito, verificável e independente do gerador.
-5. O pipeline planejado preserva fallback single-view.
-6. Os riscos da trilha multi-view são reclassificados considerando a evidência concreta já validada.
-7. A UI planejada passa a refletir o artefato multi-view como insumo principal.
-8. O plano deixa claro que a integração deve ser validada primeiro com artefato real antes de automatizar a geração.
+2. O escopo da fase atual fica explicitamente restrito a `front`, `left`, `back` e `right`.
+3. O plano deixa explícito que `top` e `bottom` ficam fora da fase atual.
+4. A arquitetura prevista separa claramente geração das vistas e ingestão no TripoSR.
+5. A etapa ComfyUI + Florence aparece como etapa opcional/plugável, local e sem dependência de API key.
+6. O contrato da imagem 4-view fica explícito, verificável e independente do gerador.
+7. O pipeline planejado preserva fallback single-view.
+8. Os riscos da trilha multi-view são reclassificados considerando a evidência concreta já validada.
+9. A UI planejada passa a refletir o artefato multi-view como insumo principal.
+10. O plano deixa claro que a integração deve ser validada primeiro com artefato real antes de automatizar a geração.
 
 # Riscos atualizados
 
@@ -382,6 +418,15 @@ A existência de um caso funcional reduz risco, mas não prova robustez universa
 - distinguir claramente evidência de viabilidade de evidência de generalização;
 - manter critérios objetivos de aceite por caso.
 
+## Risco 7 — Ampliação prematura do escopo com vistas extras
+
+Adicionar `top` ou `bottom` nesta fase pode elevar a chance de desalinhamento entre vistas, aumentar ambiguidade no parsing e atrasar a validação do contrato principal de 4 vistas canônicas.
+
+### Mitigação
+- manter a fase atual restrita a `front`, `left`, `back` e `right`;
+- só reconsiderar `top`/`bottom` após evidência clara de ganho real sem perda de alinhamento;
+- tratar qualquer expansão futura como nova decisão de escopo, não como extensão implícita.
+
 # Observações
 
 1. Esta atualização muda o status da trilha ComfyUI + Florence de hipótese para evidência local validada.
@@ -389,20 +434,23 @@ A existência de um caso funcional reduz risco, mas não prova robustez universa
 3. O foco de implementação futura deve sair de “como gerar qualquer multi-view” para “como consumir corretamente um multi-view validado e tornar a geração uma fonte plugável”.
 4. O prompt validado pelo usuário passa a funcionar como referência de contrato visual, não como dependência obrigatória do núcleo do sistema.
 5. O plano anterior continua útil como base de integração progressiva, mas sua priorização de diffusion como etapa incerta foi revisada pela nova evidência.
-6. A inspeção do diretório `Florence-2-Flux-Large` mostra que o componente Florence não está preso ao ComfyUI em termos de carregamento e inferência base; ele pode ser chamado por Python puro com Transformers.
-7. A mesma inspeção também indica cautela: o pacote observado é de natureza multimodal texto-imagem estruturada, então a síntese efetiva de `anjinho-all-sides.png` pode depender de outros nós/modelos do workflow ainda não inspecionados.
+6. A fase atual fica deliberadamente limitada a quatro vistas canônicas consistentes; topo da cabeça e planta do pé não fazem parte do contrato atual.
+7. Essa limitação é intencional e orientada por redução de risco: prioriza alinhamento consistente sobre cobertura adicional de vistas com baixo ganho incremental esperado.
+8. A inspeção do diretório `Florence-2-Flux-Large` mostra que o componente Florence não está preso ao ComfyUI em termos de carregamento e inferência base; ele pode ser chamado por Python puro com Transformers.
+9. A mesma inspeção também indica cautela: o pacote observado é de natureza multimodal texto-imagem estruturada, então a síntese efetiva de `anjinho-all-sides.png` pode depender de outros nós/modelos do workflow ainda não inspecionados.
 
 # Recomendação final
 
 A recomendação atualizada é seguir esta ordem:
 
 1. oficializar `anjinho-all-sides.png` como caso canônico 4-view;
-2. formalizar o contrato técnico do insumo multi-view com base no prompt validado;
+2. formalizar o contrato técnico do insumo multi-view com base no prompt validado e na diretriz explícita de apenas quatro vistas canônicas;
 3. planejar a integração do TripoSR usando primeiro esse artefato pronto;
 4. adaptar o pipeline para `Nv` dinâmico com fallback single-view;
 5. alinhar a UI ao novo artefato de preprocess;
-6. somente depois automatizar a etapa local ComfyUI + Florence como módulo plugável;
-7. decidir adoção padrão do multi-view apenas após comparação objetiva de qualidade, custo e estabilidade.
+6. não incluir `top` ou `bottom` na fase atual;
+7. somente depois automatizar a etapa local ComfyUI + Florence como módulo plugável;
+8. decidir adoção padrão do multi-view apenas após comparação objetiva de qualidade, custo e estabilidade.
 
 Essa ordem maximiza previsibilidade, reduz risco de retrabalho e usa a nova evidência validada como acelerador da integração, não como atalho arquitetural perigoso.
 
@@ -410,7 +458,8 @@ Essa ordem maximiza previsibilidade, reduz risco de retrabalho e usa a nova evid
 
 1. Validar que `anjinho-all-sides.png` atende ao contrato 4-view documentado.
 2. Confirmar que o artefato pode ser tratado logicamente como `front`, `left`, `back`, `right`.
-3. Planejar o fluxo de UI para exibir esse artefato como preview principal.
+3. Confirmar que a fase atual não depende de `top` ou `bottom` em nenhum ponto do contrato planejado.
+4. Planejar o fluxo de UI para exibir esse artefato como preview principal.
 4. Planejar o consumo desse payload por `/generate` com `Nv=4`.
 5. Comparar resultados futuros contra o baseline single-view com `anjinho-lowpoly.png`.
 6. Medir impacto em tempo e uso de GPU quando a execução for realizada.
