@@ -81,3 +81,8 @@ Resultado observado:
 
 ### Limitação reconhecida
 - a síntese automática ainda é uma adaptação raster determinística guiada por contexto Florence e pela imagem de entrada; ela cumpre o contrato 4-view, mas não prova por si só geração semântica profunda diretamente pelo checkpoint.
+
+### Refinamento desta sessão
+- o caminho Florence-guided automático foi consolidado como trilha estável de geração 4-view em torno de `Florence2-Flux-Large`;
+- o runtime serial agora garante `unload_raster_backend()` em `finally` após a geração automática, reduzindo risco de residência residual antes da etapa TripoSR;
+- o fluxo legado `single_view_legacy` permaneceu intocado.
