@@ -58,3 +58,26 @@ Resultado observado:
 - contrato público preservado;
 - fluxo legacy preservado;
 - fallback seguro preservado.
+
+## Atualização desta sessão
+
+### O que mudou agora
+- o backend raster foi promovido para geração automática 4-view canônica em [`app/raster_adapter.py`](../../app/raster_adapter.py);
+- o runtime passou a rotear a trilha Florence para o backend automático `florence_auto` em [`app/model_runtime.py`](../../app/model_runtime.py);
+- a UI experimental em [`app/app.py`](../../app/app.py) foi ajustada para refletir o caminho automático.
+
+### Verificação executada
+Comando executado com sucesso no diretório [`app/`](../../app):
+
+```text
+python -c "from PIL import Image; from raster_adapter import RasterMultiViewRequest, FlorenceGuidedRasterMultiViewBackend, adapt_backend_result_to_multiview_artifact; image = Image.new('RGB', (96, 64), color=(240, 240, 240)); request = RasterMultiViewRequest(input_image=image, prompt='auto 4-view validation').validate(); backend = FlorenceGuidedRasterMultiViewBackend(); backend_result = backend.generate(request); adapted = adapt_backend_result_to_multiview_artifact(request, backend_result); assert adapted.artifact is not None; artifact = adapted.artifact; assert artifact.composite_preview.size == (artifact.front.width * 4, artifact.front.height); assert artifact.generation_metadata['backend_name'] == 'florence_guided_raster'; assert artifact.generation_metadata['generation_mode'] == 'florence_auto_raster'; print({'status': backend_result.status, 'artifact_size': artifact.front.size, 'preview_size': artifact.composite_preview.size, 'views': list(artifact.as_named_views().keys())})"
+```
+
+Resultado observado:
+- `status='success'`;
+- `artifact_size=(96, 64)`;
+- `preview_size=(384, 64)`;
+- `views=['front', 'left', 'back', 'right']`.
+
+### Limitação reconhecida
+- a síntese automática ainda é uma adaptação raster determinística guiada por contexto Florence e pela imagem de entrada; ela cumpre o contrato 4-view, mas não prova por si só geração semântica profunda diretamente pelo checkpoint.
